@@ -6,7 +6,6 @@ class MyHTMLParser(HTMLParser):
   wall_src = []
   
   def handle_starttag(self, tag, attrs):
- #   print "Encountered a start tag:", attrs
     for attr_name, attr_value in attrs:
       #This was used to select the thumbnail ID to construct the URL to get to the page containing the img src. 
       #I'm an idiot and wasted time doing this when I should have been grabbing the href to begin with. fuck.
@@ -22,7 +21,6 @@ class MyOtherHTMLParser(MyHTMLParser):
   
   def handle_data(self, data):
   ###FIX THIS. SHIT WILL GO SLOW UNTIL I FIGURE OUT HOW TO ONLY SELECT THE JAVASCRIPT###
-  #  print "Handling data"
     base64_imgsrc = re.search(r"(?<=(%s))[\S]*(?=%s)" % (re.escape("'+B(\\'"), re.escape("\\')")), (repr(data)))
     if base64_imgsrc:
       self.img_src.append(base64.standard_b64decode(base64_imgsrc.group()))
@@ -56,22 +54,7 @@ parser = MyHTMLParser()
 parser2 = MyOtherHTMLParser()
 html = open_url(url)
 parser.feed(html)
-#parser.feed(page)
-#parser.feed(soup.find_all('a'))
-#parser.feed('<div class="thumb" id="thumb111111" tags="sunset|7932|0||trees|8188|0||scenic|13485|0">'
-#            '<div class="thumb" id="thumb222222222" tags="sunset|7932|0||trees|8188|0||scenic|13485|0">'
-#            '<div class="thumb" id="thumb333" tags="sunset|7932|0||trees|8188|0||scenic|13485|0">'
-#            '<a href="http://wallbase.cc/wallpaper/2164920" id="drg_thumb2164920" class="thdraggable thlink" target="_blank"><img src="http://ns3002439.ovh.net/thumbs/manga-anime/thumb-2164920.jpg" style="width:250px;height:188px"></a>'
-#           )
-#parser.feed('<script type="text/javascript">document.write(\'<img alt="sunset trees scenic  / 1920x1080 Wallpaper" src="\'+B(\'aHR0cDovL25zMjIzNTA2Lm92aC5uZXQvbWFuZ2EtYW5pbWUvMjYyZmQwYjM2OWIwY2EwZDQxYjYzZjFhMjVhZjNjMzUvd2FsbHBhcGVyLTIxNjQ5MjAuanBn\')+\'" />\');</script>')
-
-#parser.x = document.write('<img alt="sunset trees scenic  / 1920x1080 Wallpaper" src="'+B('aHR0cDovL25zMjIzNTA2Lm92aC5uZXQvbWFuZ2EtYW5pbWUvMjYyZmQwYjM2OWIwY2EwZDQxYjYzZjFhMjVhZjNjMzUvd2FsbHBhcGVyLTIxNjQ5MjAuanBn')+'" />');
-#match_object = re.search(r"(?<=(%s))[\S]*(?=%s)" % (re.escape("'+B(\\'"), re.escape("\\')")), (repr(parser.x)))
-#if not match_object.group():
-#  print "Something terrible happened while extracting the image source from the base64 blah blah blah"
-
 for foo in parser.wall_src:
   html = open_url(foo)
   parser2.feed(html)
-  
 download_images(parser2.img_src)
