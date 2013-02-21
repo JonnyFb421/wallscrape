@@ -1,30 +1,67 @@
-from bs4 import BeautifulSoup
 from HTMLParser import HTMLParser 
-import urllib2, re, base64, os
+import urllib2, re, base64, os, time, threading, Queue
 
-class MyHTMLParser(HTMLParser):
-  wall_src = []
-  
+queue = Queue.Queue()
+decode_queue = Queue.Queue()
+img_src = []
+
+class MyHTMLParser(HTMLParser):  
   def handle_starttag(self, tag, attrs):
     for attr_name, attr_value in attrs:
-      #This was used to select the thumbnail ID to construct the URL to get to the page containing the img src. 
-      #I'm an idiot and wasted time doing this when I should have been grabbing the href to begin with. fuck.
-      #foobar = re.search(r"(?<=thumb)([\d]+)", attr_value)
       if not attr_name == "href":
         continue
-      wallpaper_url = re.match(r"http://wallbase.cc/wallpaper/[\d]+", attr_value)
+      wallpaper_url = re.search(r"(?<=http://wallbase.cc/)wallpaper/[\d]+", attr_value)
       if wallpaper_url:
-        self.wall_src.append(attr_value)
- 
-class MyOtherHTMLParser(MyHTMLParser):  
-  img_src = []
-  
+        decode_queue.put(attr_value)
+        
+class TestyClass(HTMLParser):
   def handle_data(self, data):
-  ###FIX THIS. SHIT WILL GO SLOW UNTIL I FIGURE OUT HOW TO ONLY SELECT THE JAVASCRIPT###
     base64_imgsrc = re.search(r"(?<=(%s))[\S]*(?=%s)" % (re.escape("'+B(\\'"), re.escape("\\')")), (repr(data)))
     if base64_imgsrc:
-      self.img_src.append(base64.standard_b64decode(base64_imgsrc.group()))
+      img_src.append(base64.standard_b64decode(base64_imgsrc.group()))
+              
+class MyThreadedHTMLParser(threading.Thread, HTMLParser):
+  """Decode base64 image and adds the resulting complete URL to list: img_src"""
+  def __init__(self, decode_queue):
+    threading.Thread.__init__(self)
+    self.decode_queue = decode_queue
+  def run(self):
+    while True:
+      foobar = self.decode_queue.get()
+      html = open_url(foobar)
+      parser2 = TestyClass()
+      parser2.feed(html)
+      print
+      print foobar
+      print
+      self.decode_queue.task_done()   
       
+class ThreadDownload(threading.Thread):
+  """Threaded Download Attempt"""
+  def __init__(self, queue):
+    threading.Thread.__init__(self)
+    self.queue = queue 
+  def run(self):
+    while True:
+      try:
+        img_url = self.queue.get()
+        img_data = urllib2.urlopen(img_url).read()
+        try:
+          filename = re.search(r"(wallpaper)[\S]+", str(img_url))
+          output = open(str(filename.group()), 'wb')
+          output.write(img_data)
+          output.close()
+          print "Image has been succesfully downaloaded to %s!" % (os.path.abspath(filename.group()))
+          self.queue.task_done()
+        except IOError as e:
+          print "{} failed to download: {}".format(filename.group(), e.strerror)
+      except urllib2.HTTPError, e:
+        print('HTTPError = ' + str(e.code))
+      except urllib2.URLError, e:
+        print('URLError = ' + str(e.reason))
+      except httplib.HTTPException, e:
+        print('HTTPException')
+             
 def open_url(url):
   """Opens URL and returns html"""
   request = urllib2.Request(url)
@@ -33,28 +70,40 @@ def open_url(url):
   html = response.read()
   response.close()
   return html
-  
-def download_images(img_src):
-  """Traverses through img_src list for the URLs and downloads the images."""
-  for img in img_src:
-    img_data = urllib2.urlopen(img).read()       
+    
+def main():
+  download_location = '.\pics'
+  os.chdir(download_location)
+  while True:
     try:
-        filename = img.split('/')[-1]
-        output = open(filename, 'wb')
-        output.write(img_data)
-        output.close()
-        print "Image has been succesfully downaloaded to %s!" % (os.path.abspath(filename))
-    except IOError as e:
-        print "{} failed to download: {}".format(filename, e.strerror)
-
-download_location = './pics'
-os.chdir(download_location)
-url = "http://wallbase.cc/toplist/0/23/eqeq/0x0/0/110/32/0"
-parser = MyHTMLParser()
-parser2 = MyOtherHTMLParser()
-html = open_url(url)
-parser.feed(html)
-for foo in parser.wall_src:
-  html = open_url(foo)
-  parser2.feed(html)
-download_images(parser2.img_src)
+      download_count = int(input("How many wallpapers would you like to download? (Must be a multiple of 60): "))
+    except:
+      print "Please pick a valid number."
+    start_time = time.time()
+    file_count = len([file for file in os.listdir('.') if os.path.isfile(file)])
+    current_download_count = file_count
+    while True:
+      url = "http://wallbase.cc/toplist/" + str(current_download_count) + "/23/eqeq/0x0/0/110/60/0"
+      parser = MyHTMLParser()
+      html = open_url(url)
+      parser.feed(html)
+      #Request and retrieve image source
+      for i in range(10):
+        t = MyThreadedHTMLParser(decode_queue)
+        t.setDaemon(True)
+        t.start()
+      decode_queue.join()
+      for img in img_src:
+        queue.put(img)
+      #download
+      for i in range(10):
+        td = ThreadDownload(queue)
+        td.setDaemon(True)
+        td.start()
+      queue.join()
+      current_download_count += 60
+      if not current_download_count > (int(download_count) + file_count): continue
+      else: break
+    break
+  print "%.2f" % (time.time() - start_time)
+main()
