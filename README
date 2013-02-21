@@ -3,3 +3,5 @@ Wallbase Scraper
 This script will download wallpapers from the global toplist of Wallbase.cc.  
 I had foolishly wrote this script without using an HTML Parser (just good ol' regex and beautifulsoup) so I decided try doing it the right way.
 So far it's not nearly as efficent as the original script, but it's a work in progress. 
+
+Also I'm new to git.
