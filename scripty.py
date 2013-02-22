@@ -5,6 +5,23 @@ queue = Queue.Queue()
 decode_queue = Queue.Queue()
 img_src = []
 
+class DownloadCounter():
+  download_success = 0
+  def track_downloads(self, file_count):
+    self.file_count = file_count
+    self.current_download_count = file_count
+    #self.download_success = 0
+  def total_downloads(self):
+    while True:
+      try:
+        self.download_count = int(input("How many wallpapers would you like to download? (Must be a multiple of 60): "))
+        if self.download_count % 60 == 0: break
+        else:
+          print "Please a multiple of 60."
+          continue
+      except:
+        print "Please pick a valid number."
+ 
 class MyHTMLParser(HTMLParser):  
   def handle_starttag(self, tag, attrs):
     for attr_name, attr_value in attrs:
@@ -16,6 +33,7 @@ class MyHTMLParser(HTMLParser):
         
 class TestyClass(HTMLParser):
   def handle_data(self, data):
+  #  if len(data) >= 150: 
     base64_imgsrc = re.search(r"(?<=(%s))[\S]*(?=%s)" % (re.escape("'+B(\\'"), re.escape("\\')")), (repr(data)))
     if base64_imgsrc:
       img_src.append(base64.standard_b64decode(base64_imgsrc.group()))
@@ -31,9 +49,6 @@ class MyThreadedHTMLParser(threading.Thread, HTMLParser):
       html = open_url(foobar)
       parser2 = TestyClass()
       parser2.feed(html)
-      print
-      print foobar
-      print
       self.decode_queue.task_done()   
       
 class ThreadDownload(threading.Thread):
@@ -51,16 +66,17 @@ class ThreadDownload(threading.Thread):
           output = open(str(filename.group()), 'wb')
           output.write(img_data)
           output.close()
-          print "Image has been succesfully downaloaded to %s!" % (os.path.abspath(filename.group()))
+          print "Wallpaper downaloaded to %s!" % (os.path.abspath(filename.group()))
           self.queue.task_done()
+          DownloadCounter.download_success += 1
         except IOError as e:
           print "{} failed to download: {}".format(filename.group(), e.strerror)
       except urllib2.HTTPError, e:
-        print('HTTPError = ' + str(e.code))
+        self.queue.task_done()
+#        print('HTTPError = ' + str(e.code))
       except urllib2.URLError, e:
-        print('URLError = ' + str(e.reason))
-      except httplib.HTTPException, e:
-        print('HTTPException')
+        self.queue.task_done()
+ #       print('URLError = ' + str(e.reason))
              
 def open_url(url):
   """Opens URL and returns html"""
@@ -74,36 +90,32 @@ def open_url(url):
 def main():
   download_location = '.\pics'
   os.chdir(download_location)
+  start_time = time.time()
+  download_counter = DownloadCounter()
+  footar = (len([file for file in os.listdir('.') if os.path.isfile(file)]))
+  download_counter.track_downloads(footar)
+  download_counter.total_downloads()
   while True:
-    try:
-      download_count = int(input("How many wallpapers would you like to download? (Must be a multiple of 60): "))
-    except:
-      print "Please pick a valid number."
-    start_time = time.time()
-    file_count = len([file for file in os.listdir('.') if os.path.isfile(file)])
-    current_download_count = file_count
-    while True:
-      url = "http://wallbase.cc/toplist/" + str(current_download_count) + "/23/eqeq/0x0/0/110/60/0"
-      parser = MyHTMLParser()
-      html = open_url(url)
-      parser.feed(html)
-      #Request and retrieve image source
-      for i in range(10):
-        t = MyThreadedHTMLParser(decode_queue)
-        t.setDaemon(True)
-        t.start()
+    url = "http://wallbase.cc/toplist/" + str(download_counter.current_download_count) + "/23/gteq/1920x1080/0/110/60/0"
+    parser = MyHTMLParser()
+    html = open_url(url)
+    parser.feed(html)
+    #thread pool to decode and retrieve img_src
+    for i in range(60):
+      t = MyThreadedHTMLParser(decode_queue)
+      t.setDaemon(True)
+      t.start()
       decode_queue.join()
       for img in img_src:
         queue.put(img)
-      #download
-      for i in range(10):
+      #thread pool to download 
+      for i in range(60):
         td = ThreadDownload(queue)
         td.setDaemon(True)
         td.start()
       queue.join()
-      current_download_count += 60
-      if not current_download_count > (int(download_count) + file_count): continue
-      else: break
-    break
+      download_counter.current_download_count += 60
+      break
+    if download_counter.current_download_count >= (int(download_counter.download_count) + download_counter.file_count): break
   print "%.2f" % (time.time() - start_time)
 main()
