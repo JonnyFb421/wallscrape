@@ -1,5 +1,7 @@
 from HTMLParser import HTMLParser 
-import urllib2, re, base64, os, time, threading, Queue, logging
+from sys import exit
+from base64 import standard_b64decode
+import urllib2, re, os, time, threading, Queue, logging
 
 LOG_FILENAME = 'scripty.out'
 logging.basicConfig(filename=LOG_FILENAME,
@@ -39,7 +41,7 @@ class TestyClass(HTMLParser):
   def handle_data(self, data):
     base64_imgsrc = re.search(r"(?<=(%s))[\S]*(?=%s)" % (re.escape("'+B(\\'"), re.escape("\\')")), (repr(data)))
     if base64_imgsrc:
-      queue.put(base64.standard_b64decode(base64_imgsrc.group()))
+      queue.put(standard_b64decode(base64_imgsrc.group()))
               
 class MyThreadedHTMLParser(threading.Thread, HTMLParser):
   """Decode base64 image and adds the resulting complete URL to queue"""
@@ -62,8 +64,8 @@ class ThreadDownload(threading.Thread):
     threading.Thread.__init__(self)
     self.queue = queue 
   def run(self):
+    img_url = self.queue.get()
     try:
-      img_url = self.queue.get()
       img_data = urllib2.urlopen(img_url).read()
       try:
         filename = re.search(r"(wallpaper)[\S]+", str(img_url))
@@ -86,6 +88,9 @@ class ThreadDownload(threading.Thread):
         logging.debug('Code: %s', e.reason)
         self.queue.task_done()
         return None
+      else:
+        logging.debug('Shit fucked up1')
+        return None
            
 def open_url(url):
   """Opens URL and returns html"""
@@ -106,19 +111,35 @@ def open_url(url):
       logging.debug('The serverrrr couldn\'t fulfill the request.')
       logging.debug('Code: %s', e.reason)
       return None
-
+    else:
+      logging.debug('Shit fucked up2')
+      return None    
+    
+def mkPicDir(file_path):
+  if not os.path.isdir(file_path):
+    try:
+      print "sleeping"
+      os.mkdir(file_path)
+    except OSError, e:
+      print "Directory could not be created."#, e.errno
+      exit() 
+      
 def main():
-  os.chdir('.\pics')
+  file_path = '.\pics'
+  mkPicDir(file_path)
+  os.chdir(file_path)
   start_time = time.time()
   download_counter = DownloadCounter()
-  footar = (len([file for file in os.listdir('.') if os.path.isfile(file)]))
-  download_counter.track_downloads(footar)
+  files_in_file_path = (len([file for file in os.listdir('.') if os.path.isfile(file)]))
+  download_counter.track_downloads(files_in_file_path)
   download_counter.total_downloads()
   while True:
     url = "http://wallbase.cc/toplist/" + str(download_counter.current_download_count) + "/23/gteq/1920x1080/0/110/60/0"
     parser = MyHTMLParser()
     html = open_url(url)
-    if html is None: continue
+    if html is None: 
+      print "ABRA KADABRA"
+      continue
     parser.feed(html)
     #thread pool to decode and retrieve image source 
     for i in range(60):
@@ -147,10 +168,13 @@ def main():
       main_thread = threading.currentThread()
       for thread in threading.enumerate():
         print thread.getName()
-        if thread is not main_thread:
-          print "Joining2 :", thread.getName() + " %.2f" % (time.time() - start_time)
-          while thread.isAlive():
-            thread.join()      
+        if thread is main_thread: continue
+        print "Joining2 :", thread.getName() + " %.2f" % (time.time() - start_time)
+        while thread.isAlive():
+          print "still alive"
+          thread.join(2)      
+        print threading.active_count()
       break
+  print threading.active_count()
   print "%.2f" % (time.time() - start_time)
 main()
