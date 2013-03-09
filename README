@@ -1,19 +1,16 @@
-# Wallbase Scraper #
+Wallbase Scraper
 v0.4
 This script will download wallpapers from the global toplist of Wallbase.cc.  This script is an exercise for me to get a better understanding of Python, threading, and queues.  
 
-## Bugs ##
-
-
-## To Do ##
+To Do
 Add URL back to queue if the HTTP request times out so user does not miss any downloads. Now that the worker threads spawn in range of queue.size() if I add it back to the queue it should try to downloading that again without skipping a beat.
 
 Rename class TestyClass.  This class is responsible for the script being a bit slower than it could be.  It's subclass of HTMLParser currently using handle_data and using regex on all that HTML.  The solution to this is only pass the data within the <script> tags instead of ALL the data. 
 
 Add ability to log in
 
-## Change Log ##
+Change Log 
 
-<ul>
-<li>0.4 Fixed issue with threads hanging</li>
-</ul>
+
+0.4 Fixed issue with threads hanging
+
