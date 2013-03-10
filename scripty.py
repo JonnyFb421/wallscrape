@@ -72,7 +72,7 @@ class ThreadDownload(threading.Thread):
       # print "Wallpaper downaloaded to %s!" % (os.path.abspath(filename.group()))
       DownloadTracker.download_success += 1
     except IOError as e:
-      print "{} failed to download: {}".format(filename.group(), e.strerror)
+      print "Failed to download URL: %s" % img_url
     except urllib2.URLError, e:
       if hasattr(e, 'reason'):
         print '\nReason: %s \nURL: %s' % (e.reason, img_url)
@@ -114,6 +114,8 @@ def main():
   start_time = time.time()
   dt = DownloadTracker()
   #Count files in ./pics which will be added to current_download_count in order to pick up where the user left off downloading
+  #The top list is dynamic so eventually we're going to be missing some wallpapers or requesting wallpapers that have already been downloaded.
+  #One possible solution would be an update function that splits the URLs (split('/')[-1]) from decode_queue, then check isfile in ./pics 
   files_in_file_path = (len([file for file in os.listdir('.') if os.path.isfile(file)])) 
   dt.track_downloads(files_in_file_path)
   dt.total_downloads()
@@ -131,15 +133,15 @@ def main():
       t = MyThreadedHTMLParser(decode_queue)      
       t.start()
     decode_queue.join()
-    print "decode_queue joined %.2f" % (time.time() - start_time)
+    #print "decode_queue joined %.2f" % (time.time() - start_time)
     #thread pool to download 
     for i in range(queue.qsize()):
       td = ThreadDownload(queue)
       td.start()
     queue.join()
-    print "queue joined %.2f" % (time.time() - start_time)
+    print "Batch finished: " % (time.time() - start_time)
     dt.current_download_count += 60
-    print "Images downloaded:" + str(dt.download_success)
+    print "Images downloaded: " + str(dt.download_success)
     print "Images left to download: " + str((int(dt.download_count) + dt.file_count - dt.current_download_count))
     if dt.current_download_count >= (int(dt.download_count) + dt.file_count):
       break
