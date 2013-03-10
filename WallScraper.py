@@ -120,7 +120,7 @@ def main():
   dt.track_downloads(files_in_file_path)
   dt.total_downloads()
   while True:
-    url = "http://wallbase.cc/toplist/" + str(dt.current_download_count) + "/23/gteq/1920x1080/1.77/110/60/3d"
+    url = "http://wallbase.cc/toplist/" + str(dt.current_download_count) + "/23/gteq/1920x1080/1.77/110/60/0"
     parser = MyHTMLParser()
     html = open_url(url)
     if html is None: 
