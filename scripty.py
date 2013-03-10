@@ -1,14 +1,7 @@
 from HTMLParser import HTMLParser 
 from sys import exit
 from base64 import standard_b64decode
-import urllib2, re, os, time, threading, Queue, logging, traceback
-
-LOG_FILENAME = 'scripty.out'
-logging.basicConfig(filename=LOG_FILENAME,
-                    filemode='w',
-                    level=logging.DEBUG,
-                    format='(%(threadName)-10s) %(message)s',
-                    )
+import urllib2, re, os, time, threading, Queue
 
 queue = Queue.Queue()
 decode_queue = Queue.Queue()
@@ -19,7 +12,6 @@ class DownloadTracker():
   def track_downloads(self, file_count):
     self.file_count = file_count
     self.current_download_count = file_count
-    #self.download_success = 0
   def total_downloads(self):
     while True:
       try:
@@ -81,55 +73,34 @@ class ThreadDownload(threading.Thread):
           output.close()
          # print "Wallpaper downaloaded to %s!" % (os.path.abspath(filename.group()))
           DownloadTracker.download_success += 1
-          self.queue.task_done()
         except IOError as e:
           print "{} failed to download: {}".format(filename.group(), e.strerror)
-          return None
       except urllib2.URLError, e:
         if hasattr(e, 'reason'):
-          logging.debug('failed to reach a server.')
-          logging.debug('Reason: %s', e.reason)
-          logging.debug(img_url)
-          self.queue.task_done()
-          return None
+          print '\nReason: %s \nURL: %s' % (e.reason, img_url)
         elif hasattr(e, 'code'):
-          logging.debug('The serverr couldn\'t fulfill the request.')
-          logging.debug('Code: %s', e.reason)
-          logging.debug(img_url)        
-          self.queue.task_done()
-          return None
+          print '\nReason: %s \nURL: %s' % (e.reason, img_url)
         else:
-          logging.debug('Something bad happened 1')
-          return None
+          print '\nReason: %s \nURL: %s' % (e.reason, img_url)
     except Queue.Empty:
-      self.queue.task_done()
-      return None
+      pass
+    finally:
+      self.queue.task_done()    
            
 def open_url(url):
   """Opens URL and returns html"""
-  response = urllib2.urlopen(url)
   try:
+    response = urllib2.urlopen(url)  
     html = response.read()
     response.close()
-    return(html)
+    return(html)        
   except urllib2.URLError, e:
     if hasattr(e, 'reason'):
-      #tb = traceback.format_exc()
-      #print tb
-      logging.debug('failed to reach a serverrr.')
-      logging.debug('Reason: %s', e.reason)
-      logging.debug(url)
-      return None
+      print '\nReason: %s \nURL: %s' % (e.reason, url)
     elif hasattr(e, 'code'):
-      #tb = traceback.format_exc()
-      #print tb
-      logging.debug('The serverrrr couldn\'t fulfill the request.')
-      logging.debug('Code: %s', e.reason)
-      logging.debug(url)      
-      return None
+      print '\nReason: %s \nURL: %s' % (e.reason, url)
     else:
-      logging.debug('Something bad happened 2')      
-      return None    
+      print '\nReason: %s \nURL: %s' % (e.reason, url)
     
 def mkPicDir(file_path):
   if not os.path.isdir(file_path):
@@ -150,7 +121,7 @@ def main():
   dt.track_downloads(files_in_file_path)
   dt.total_downloads()
   while True:
-    url = "http://wallbase.cc/toplist/" + str(dt.current_download_count) + "/23/gteq/1920x1080/0/110/60/0"
+    url = "http://wallbase.cc/toplist/" + str(dt.current_download_count) + "/23/gteq/1920x1080/1.77/110/60/3d"
     parser = MyHTMLParser()
     html = open_url(url)
     if html is None: 
@@ -158,7 +129,7 @@ def main():
       continue
     #First page displays 60 images, this will parse for the appropriate hrefs and add them to decode_queue
     parser.feed(html)
-    #thread pool
+    #Until decode_queue is empty perform MyThreadedHTMLParser
     for i in range(decode_queue.qsize()):
       t = MyThreadedHTMLParser(decode_queue)      
       t.start()
@@ -172,7 +143,7 @@ def main():
     print "queue joined %.2f" % (time.time() - start_time)
     dt.current_download_count += 60
     print "Images downloaded:" + str(dt.download_success)
-    print "Images left to download: " + str(dt.current_download_count - (int(dt.download_count) + dt.file_count))
+    print "Images left to download: " + str((int(dt.download_count) + dt.file_count - dt.current_download_count))
     if dt.current_download_count >= (int(dt.download_count) + dt.file_count):
       break
   if not dt.download_success == dt.download_count:
