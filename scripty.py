@@ -64,26 +64,23 @@ class ThreadDownload(threading.Thread):
   def run(self):
     try:
       img_url = self.queue.get()
-      try:
-        img_data = urllib2.urlopen(img_url).read()
-        try:
-          filename = re.search(r"(wallpaper)[\S]+", str(img_url))
-          output = open(str(filename.group()), 'wb')
-          output.write(img_data)
-          output.close()
-         # print "Wallpaper downaloaded to %s!" % (os.path.abspath(filename.group()))
-          DownloadTracker.download_success += 1
-        except IOError as e:
-          print "{} failed to download: {}".format(filename.group(), e.strerror)
-      except urllib2.URLError, e:
-        if hasattr(e, 'reason'):
-          print '\nReason: %s \nURL: %s' % (e.reason, img_url)
-        elif hasattr(e, 'code'):
-          print '\nReason: %s \nURL: %s' % (e.reason, img_url)
-        else:
-          print '\nReason: %s \nURL: %s' % (e.reason, img_url)
-    except Queue.Empty:
-      pass
+      img_data = urllib2.urlopen(img_url).read()
+      filename = re.search(r"(wallpaper)[\S]+", str(img_url))
+      output = open(str(filename.group()), 'wb')
+      output.write(img_data)
+      output.close()
+      # print "Wallpaper downaloaded to %s!" % (os.path.abspath(filename.group()))
+      DownloadTracker.download_success += 1
+    except IOError as e:
+      print "{} failed to download: {}".format(filename.group(), e.strerror)
+    except urllib2.URLError, e:
+      if hasattr(e, 'reason'):
+        print '\nReason: %s \nURL: %s' % (e.reason, img_url)
+      elif hasattr(e, 'code'):
+        print '\nReason: %s \nURL: %s' % (e.reason, img_url)
+      else:
+        print '\nReason: %s \nURL: %s' % (e.reason, img_url)
+    except Queue.Empty: pass
     finally:
       self.queue.task_done()    
            
